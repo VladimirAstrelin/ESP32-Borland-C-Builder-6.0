@@ -1,198 +1,198 @@
 //---------------------------------------------------------------------------
-// ESP32_CALC_PAINT Ч Windows программа дл¤ управлени¤ ESP32
-// „асть 1: подключение к ESP32 через COM-порт
+// ESP32_CALC_PAINT — Windows программа для управления ESP32
+// Часть 1: подключение к ESP32 через COM-порт
 //---------------------------------------------------------------------------
 
-// ѕодключаем заголовочные файлы с описани¤ми всего что используем
-#include <vcl.h>          // Visual Component Library Ч главна¤ библиотека C++ Builder
-#include <windows.h>      // Windows API Ч функции дл¤ работы с COM-портом, файлами и т.д.
-#include <registry.hpp>   // –абота с реестром Windows (там хранитс¤ список COM-портов)
-#include <IniFiles.hpp>   // TIniFile Ч работа с INI-файлами дл¤ сохранени¤ настроек
-#include <shellapi.h>     // ShellExecute Ч более современный способ запуска программ
+// Подключаем заголовочные файлы с описаниями всего что используем
+#include <vcl.h>          // Visual Component Library — главная библиотека C++ Builder
+#include <windows.h>      // Windows API — функции для работы с COM-портом, файлами и т.д.
+#include <registry.hpp>   // Работа с реестром Windows (там хранится список COM-портов)
+#include <IniFiles.hpp>   // TIniFile — работа с INI-файлами для сохранения настроек
+#include <shellapi.h>     // ShellExecute — более современный способ запуска программ
 
-#pragma hdrstop  // ѕрекомпилированные заголовки (ускор¤ет сборку в C++ Builder)
+#pragma hdrstop  // Прекомпилированные заголовки (ускоряет сборку в C++ Builder)
 
-#include "Unit1.h"  // ѕодключаем описание нашей формы
+#include "Unit1.h"  // Подключаем описание нашей формы
 
-#pragma package(smart_init)  // ”мна¤ инициализаци¤ компонентов (особенность Builder)
-#pragma resource "*.dfm"     // ѕодключаем ресурсы формы (дизайн из визуального редактора)
+#pragma package(smart_init)  // Умная инициализация компонентов (особенность Builder)
+#pragma resource "*.dfm"     // Подключаем ресурсы формы (дизайн из визуального редактора)
 
-// —оздаЄм глобальную переменную Form1 Ч наше главное окно
+// Создаём глобальную переменную Form1 — наше главное окно
 TForm1 *Form1;
 
 //---------------------------------------------------------------------------
-//  ќЌ—“–” “ќ– Ч выполн¤етс¤ ѕ≈–¬џћ при создании объекта формы.
-// Ёто специальна¤ функци¤ котора¤ вызываетс¤ когда программа только стартует.
+// КОНСТРУКТОР — выполняется ПЕРВЫМ при создании объекта формы.
+// Это специальная функция которая вызывается когда программа только стартует.
 // 
-// __fastcall Ч способ вызова функции (быстрый, через регистры процессора)
-// TComponent* Owner Ч "владелец" формы, обычно само приложение (Application)
-// : TForm(Owner) Ч вызываем конструктор родительского класса TForm
+// __fastcall — способ вызова функции (быстрый, через регистры процессора)
+// TComponent* Owner — "владелец" формы, обычно само приложение (Application)
+// : TForm(Owner) — вызываем конструктор родительского класса TForm
 //---------------------------------------------------------------------------
 __fastcall TForm1::TForm1(TComponent* Owner)
-    : TForm(Owner)  // —начала даЄм родительскому классу всЄ настроить
+    : TForm(Owner)  // Сначала даём родительскому классу всё настроить
 {
-    // ѕорт ещЄ не открыт Ч ставим специальное значение "нет дескриптора"
-    // INVALID_HANDLE_VALUE Ч это как "-1" дл¤ номерков HANDLE,
+    // Порт ещё не открыт — ставим специальное значение "нет дескриптора"
+    // INVALID_HANDLE_VALUE — это как "-1" для номерков HANDLE,
     // означает "невалидный, нерабочий, порт закрыт"
     hCom = INVALID_HANDLE_VALUE;
 
-    // ≈щЄ не подключены
+    // Ещё не подключены
     connected = false;
 
-    // Ќикака¤ команда не ожидает ответа (мы ничего не отправл¤ли)
+    // Никакая команда не ожидает ответа (мы ничего не отправляли)
     commandPending   = false;
     lastCommand      = "";
     commandStartTime = 0;
 
-    // »нициализируем пути к программам —“јЌƒј–“Ќџћ» значени¤ми
-    // ≈сли пользователь ещЄ ничего не выбирал Ч будут запускатьс¤ эти
+    // Инициализируем пути к программам СТАНДАРТНЫМИ значениями
+    // Если пользователь ещё ничего не выбирал — будут запускаться эти
     D4_ProgramPath  = "calc.exe";
     D16_ProgramPath = "mspaint.exe";
 }
 
 //---------------------------------------------------------------------------
-// FormCreate Ч вызываетс¤ автоматически когда форма ѕќЋЌќ—“№ё создана.
+// FormCreate — вызывается автоматически когда форма ПОЛНОСТЬЮ создана.
 // 
-// ќтличие от конструктора:
-// - ¬ конструкторе компоненты формы (кнопки, метки) ещЄ Ќ≈ готовы
-// - ¬ FormCreate всЄ уже создано и можно настраивать UI
+// Отличие от конструктора:
+// - В конструкторе компоненты формы (кнопки, метки) ещё НЕ готовы
+// - В FormCreate всё уже создано и можно настраивать UI
 // 
-// ѕоэтому настройки интерфейса делаем именно здесь, а не в конструкторе.
+// Поэтому настройки интерфейса делаем именно здесь, а не в конструкторе.
 //---------------------------------------------------------------------------
 void __fastcall TForm1::FormCreate(TObject *Sender)
 {
-    // ========== Ќј—“–ќ… ј «ј√ќЋќ¬ ј ќ Ќј ==========
-    // Caption Ч это текст в верхней полоске окна
+    // ========== НАСТРОЙКА ЗАГОЛОВКА ОКНА ==========
+    // Caption — это текст в верхней полоске окна
     Caption = "ESP32 CALC & PAINT v1.0";
 
-    // ========== Ќј„јЋ№Ќџ≈ Ќјƒѕ»—» Ќј ћ≈“ ј’ ==========
-    // —трелочка -> означает "поле объекта", то есть мы обращаемс¤ к свойству Caption
+    // ========== НАЧАЛЬНЫЕ НАДПИСИ НА МЕТКАХ ==========
+    // Стрелочка -> означает "поле объекта", то есть мы обращаемся к свойству Caption
     LBL_CONNECTION_STATUS->Caption = "CONNECTION STATUS: DISCONNECTED";
     LBL_CALC_STATUS->Caption       = "INVOKE CALC.  PRESS D4.  STATUS:";
     LBL_PAINT_STATUS->Caption      = "INVOKE PAINT. PRESS D16. STATUS:";
     LBL_D4_PINNED_TO->Caption      = "D4 PINNED TO:";
     LBL_D16_PINNED_TO->Caption     = "D16 PINNED TO:";
 
-    // ========== Ќј—“–ќ… ј “ј…ћ≈–ј ==========
-    // “аймер пока выключен Ч включитс¤ только после успешного подключени¤
+    // ========== НАСТРОЙКА ТАЙМЕРА ==========
+    // Таймер пока выключен — включится только после успешного подключения
     TimerReadCom->Enabled  = false;
     // Interval = 50 означает "срабатывать каждые 50 миллисекунд"
-    // 50 мс = 20 раз в секунду Ч достаточно быстро чтобы не пропустить данные
-    TimerReadCom->Interval = 50;  // —рабатывает каждые 50 мс
+    // 50 мс = 20 раз в секунду — достаточно быстро чтобы не пропустить данные
+    TimerReadCom->Interval = 50;  // Срабатывает каждые 50 мс
 
-    // ========== «јѕќЋЌя≈ћ —ѕ»—ќ  COM-ѕќ–“ќ¬ ==========
-    // ¬ызываем функцию котора¤ читает реестр Windows и находит все COM-порты
+    // ========== ЗАПОЛНЯЕМ СПИСОК COM-ПОРТОВ ==========
+    // Вызываем функцию которая читает реестр Windows и находит все COM-порты
     RefreshComPorts();
 
     SB_MAIN_STATUS_BAR->SimpleText = "Ready";
 
-    // ========== Ќј—“–ќ… ј ƒ»јЋќ√ј ¬џЅќ–ј ‘ј…Ћј ==========
-    // Filter Ч какие файлы показывать в диалоге
-    // "Executable files (*.exe)|*.EXE" Ч описание и маска файлов через |
-    // ¬тора¤ часть "All files (*.*)|*.*" Ч показать вообще все файлы
+    // ========== НАСТРОЙКА ДИАЛОГА ВЫБОРА ФАЙЛА ==========
+    // Filter — какие файлы показывать в диалоге
+    // "Executable files (*.exe)|*.EXE" — описание и маска файлов через |
+    // Вторая часть "All files (*.*)|*.*" — показать вообще все файлы
     OpenDialog1->Filter = "Executable files (*.exe)|*.EXE|All files (*.*)|*.*";
-    // Title Ч заголовок окна диалога
+    // Title — заголовок окна диалога
     OpenDialog1->Title = "Select program to pin";
-    // InitialDir Ч папка котора¤ откроетс¤ по умолчанию
-    // System32 Ч там лежат calc.exe и mspaint.exe
+    // InitialDir — папка которая откроется по умолчанию
+    // System32 — там лежат calc.exe и mspaint.exe
     OpenDialog1->InitialDir = "C:\\Windows\\System32\\";
     
-    // ========== Ќј—“–ќ… ј ѕќЋ≈… ¬¬ќƒј ѕ”“≈… ==========
-    // ReadOnly = true Ч пользователь не может печатать в поле, только смотреть
+    // ========== НАСТРОЙКА ПОЛЕЙ ВВОДА ПУТЕЙ ==========
+    // ReadOnly = true — пользователь не может печатать в поле, только смотреть
     EDIT_D4->ReadOnly = true;
     EDIT_D16->ReadOnly = true;
-    // Color = clBtnFace Ч цвет как у кнопки (серый), показывает что поле недоступно
+    // Color = clBtnFace — цвет как у кнопки (серый), показывает что поле недоступно
     EDIT_D4->Color = clBtnFace;
     EDIT_D16->Color = clBtnFace;
     
-    // ========== «ј√–”∆ј≈ћ —ќ’–јЌ®ЌЌџ≈ Ќј—“–ќ… » »« INI-‘ј…Ћј ==========
-    // ≈сли пользователь уже выбирал программы Ч они загруз¤тс¤
+    // ========== ЗАГРУЖАЕМ СОХРАНЁННЫЕ НАСТРОЙКИ ИЗ INI-ФАЙЛА ==========
+    // Если пользователь уже выбирал программы — они загрузятся
     LoadSettings();
     
-    // ========== ќЅЌќ¬Ћя≈ћ ќ“ќЅ–ј∆≈Ќ»≈ ѕ”“≈… Ќј ‘ќ–ћ≈ ==========
-    // ѕоказываем в пол¤х EDIT_D4 и EDIT_D16 текущие пути
+    // ========== ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ ПУТЕЙ НА ФОРМЕ ==========
+    // Показываем в полях EDIT_D4 и EDIT_D16 текущие пути
     UpdateD4PathDisplay();
     UpdateD16PathDisplay();
-    // ========== “≈ —“ ¬ —“ј“”—Ќќ… —“–ќ ≈ ==========
-    // SimpleText Ч простой текст в статусной строке (без панелей)    
+    // ========== ТЕКСТ В СТАТУСНОЙ СТРОКЕ ==========
+    // SimpleText — простой текст в статусной строке (без панелей)    
     SB_MAIN_STATUS_BAR->SimpleText = "Ready";
 }
 
 //---------------------------------------------------------------------------
-// RefreshComPorts Ч читает реестр Windows и заполн¤ет выпадающий список
+// RefreshComPorts — читает реестр Windows и заполняет выпадающий список
 // актуальными COM-портами.
 //
-// √де Windows хранит список COM-портов?
-// ¬ реестре по адресу: HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM
+// Где Windows хранит список COM-портов?
+// В реестре по адресу: HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM
 // 
-// –еестр Windows Ч это огромна¤ база данных где хран¤тс¤ ¬—≈ настройки системы.
-// ћы идЄм в специальную ветку где Windows записывает каждый COM-порт.
+// Реестр Windows — это огромная база данных где хранятся ВСЕ настройки системы.
+// Мы идём в специальную ветку где Windows записывает каждый COM-порт.
 //---------------------------------------------------------------------------
 void TForm1::RefreshComPorts()
 {
-    // ќчищаем список перед заполнением
+    // Очищаем список перед заполнением
     CMB_COM_PORT->Clear();
 
-    // —оздаЄм объект дл¤ работы с реестром.
-    // new Ч выдел¤ем пам¤ть в куче. ¬ конце функции об¤зательно delete.
+    // Создаём объект для работы с реестром.
+    // new — выделяем память в куче. В конце функции обязательно delete.
     TRegistry *reg = new TRegistry();
 
-    // ”станавливаем свойство RootKey Ч указываем с какой корневой ветки
-    // реестра начинать поиск. HKEY_LOCAL_MACHINE Ч ветка с информацией
+    // Устанавливаем свойство RootKey — указываем с какой корневой ветки
+    // реестра начинать поиск. HKEY_LOCAL_MACHINE — ветка с информацией
     // о железе компьютера, именно там Windows хранит список COM-портов.
     reg->RootKey = HKEY_LOCAL_MACHINE;
 
-    // ќткрываем ключ реестра только дл¤ чтени¤
+    // Открываем ключ реестра только для чтения
     if (reg->OpenKeyReadOnly("HARDWARE\\DEVICEMAP\\SERIALCOMM"))
     {
-        // TStringList Ч список строк из VCL.
-        // Ѕудем хранить в нЄм имена записей реестра.
+        // TStringList — список строк из VCL.
+        // Будем хранить в нём имена записей реестра.
         TStringList *values = new TStringList();
 
-        // GetValueNames заполн¤ет список именами всех записей в ключе.
-        // Ќапример: "\Device\Serial0", "\Device\VCP0" и т.д.
+        // GetValueNames заполняет список именами всех записей в ключе.
+        // Например: "\Device\Serial0", "\Device\VCP0" и т.д.
         reg->GetValueNames(values);
 
-        // ѕеребираем все найденные записи
+        // Перебираем все найденные записи
         for (int i = 0; i < values->Count; i++)
         {
-            // ReadString по имени записи возвращает еЄ значение Ч
-            // реальное им¤ порта, например "COM3" или "COM13"
+            // ReadString по имени записи возвращает её значение —
+            // реальное имя порта, например "COM3" или "COM13"
             String portName = reg->ReadString(values->Strings[i]);
 
-            // Pos("COM") == 1 Ч строка начинаетс¤ с "COM".
-            // ¬ C++ Builder индексаци¤ строк с 1, не с 0.
+            // Pos("COM") == 1 — строка начинается с "COM".
+            // В C++ Builder индексация строк с 1, не с 0.
             if (portName.Pos("COM") == 1)
             {
                 CMB_COM_PORT->Items->Add(portName);
             }
         }
 
-        // ќсвобождаем пам¤ть Ч всЄ что создано через new нужно удалить
+        // Освобождаем память — всё что создано через new нужно удалить
         delete values;
         reg->CloseKey();
     }
 
     delete reg;
 
-    // ≈сли портов не нашли Ч добавл¤ем заглушку
+    // Если портов не нашли — добавляем заглушку
     if (CMB_COM_PORT->Items->Count == 0)
     {
         CMB_COM_PORT->Items->Add("No COM ports found");
     }
 
-    // јвтоматически выбираем первый порт в списке
+    // Автоматически выбираем первый порт в списке
     CMB_COM_PORT->ItemIndex = 0;
 }
 
 //---------------------------------------------------------------------------
-// CheckESP32 Ч отправл¤ет команду TEST и ищет ответ "ESP32_OK"
+// CheckESP32 — отправляет команду TEST и ищет ответ "ESP32_OK"
 // среди всех строк которые прислал ESP32.
 //
-// ”читываем что ESP32 при старте сначала отправл¤ет "ESP32_READY",
+// Учитываем что ESP32 при старте сначала отправляет "ESP32_READY",
 // поэтому читаем весь буфер и ищем нужную строку среди всех.
 //
-// ¬озвращает true если ESP32 найден и отвечает, false иначе.
+// Возвращает true если ESP32 найден и отвечает, false иначе.
 //---------------------------------------------------------------------------
 bool TForm1::CheckESP32(HANDLE hPort)
 {
@@ -202,28 +202,28 @@ bool TForm1::CheckESP32(HANDLE hPort)
     char testCmd[] = "TEST\n";
     DWORD bytesWritten;
 
-    // “ри попытки Ч ESP32 может быть зан¤та или не сразу ответит
+    // Три попытки — ESP32 может быть занята или не сразу ответит
     for (int attempt = 0; attempt < 3; attempt++)
     {
-        // ќчищаем буфер перед каждой попыткой.
-        // PURGE_RXCLEAR Ч очистить буфер приЄма
-        // PURGE_TXCLEAR Ч очистить буфер передачи
-        // Ёто убирает ARDUINO_READY и другой "мусор" накопившийс¤ в буфере
+        // Очищаем буфер перед каждой попыткой.
+        // PURGE_RXCLEAR — очистить буфер приёма
+        // PURGE_TXCLEAR — очистить буфер передачи
+        // Это убирает ARDUINO_READY и другой "мусор" накопившийся в буфере
         PurgeComm(hPort, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
-        // ќтправл¤ем TEST в порт
+        // Отправляем TEST в порт
         if (!WriteFile(hPort, testCmd, strlen(testCmd), &bytesWritten, NULL))
         {
             Sleep(100);
             continue;
         }
 
-        // ∆дЄм пока ESP32 обработает команду и ответит.
-        // Sleep здесь допустим Ч это единственное место в программе
-        // где мы блокируемс¤ намеренно, до запуска таймера.
+        // Ждём пока ESP32 обработает команду и ответит.
+        // Sleep здесь допустим — это единственное место в программе
+        // где мы блокируемся намеренно, до запуска таймера.
         Sleep(300);
 
-        // „итаем всЄ что пришло в буфер
+        // Читаем всё что пришло в буфер
         char buffer[256] = {0};
         DWORD bytesRead;
 
@@ -239,13 +239,13 @@ bool TForm1::CheckESP32(HANDLE hPort)
             continue;
         }
 
-        // —тавим нулевой байт в конце Ч признак конца строки в C
+        // Ставим нулевой байт в конце — признак конца строки в C
         buffer[bytesRead] = '\0';
 
-        // ѕревращаем сырой буфер в строку и разбиваем по строкам.
-        // ESP32 мог прислать несколько сообщений подр¤д, например:
+        // Превращаем сырой буфер в строку и разбиваем по строкам.
+        // ESP32 мог прислать несколько сообщений подряд, например:
         // "ESP32_READY\nESP32_OK\n"
-        // TStringList автоматически разобьЄт текст по \n
+        // TStringList автоматически разобьёт текст по \n
         TStringList *lines = new TStringList();
         lines->Text = String(buffer);
 
@@ -271,63 +271,63 @@ bool TForm1::CheckESP32(HANDLE hPort)
 }
 
 //---------------------------------------------------------------------------
-// SendCommand Ч отправл¤ет команду в COM-порт.
-// ѕровер¤ет подключение и флаг ожидани¤ ответа.
+// SendCommand — отправляет команду в COM-порт.
+// Проверяет подключение и флаг ожидания ответа.
 //---------------------------------------------------------------------------
 void TForm1::SendCommand(AnsiString command)
 {
     if (!connected || hCom == INVALID_HANDLE_VALUE)
         return;
 
-    // Ќе отправл¤ем новую команду пока не получили ответ на предыдущую
+    // Не отправляем новую команду пока не получили ответ на предыдущую
     if (commandPending)
     {
-        SB_MAIN_STATUS_BAR->SimpleText = "Busy Ч waiting for ESP32 response...";
+        SB_MAIN_STATUS_BAR->SimpleText = "Busy — waiting for ESP32 response...";
         return;
     }
 
-    // ESP32 ждЄт команду с символом \n в конце
+    // ESP32 ждёт команду с символом \n в конце
     AnsiString cmd = command + "\n";
     DWORD bytesWritten;
 
     if (WriteFile(hCom, cmd.c_str(), cmd.Length(), &bytesWritten, NULL))
     {
-        commandPending   = true;              // “еперь ждЄм ответ
-        lastCommand      = command;           // «апоминаем что отправили
-        commandStartTime = GetTickCount();    // «апоминаем врем¤ отправки
+        commandPending   = true;              // Теперь ждём ответ
+        lastCommand      = command;           // Запоминаем что отправили
+        commandStartTime = GetTickCount();    // Запоминаем время отправки
     }
 }
 
 //---------------------------------------------------------------------------
-// ParseData Ч разбирает каждую строку пришедшую от ESP32.
-// ¬ызываетс¤ из TimerReadComTimer дл¤ каждой строки отдельно.
+// ParseData — разбирает каждую строку пришедшую от ESP32.
+// Вызывается из TimerReadComTimer для каждой строки отдельно.
 //---------------------------------------------------------------------------
 void TForm1::ParseData(AnsiString data)
 {
-    // ”бираем пробелы и переносы строк по кра¤м
+    // Убираем пробелы и переносы строк по краям
     data = data.Trim();
 
     SB_MAIN_STATUS_BAR->SimpleText = "GOT: " + data;
 
-    // ѕустую строку игнорируем
+    // Пустую строку игнорируем
     if (data.IsEmpty()) return;
 
-    // --- ќтвет на TEST (от CheckESP32, не должен сюда попасть,
-    //     но на вс¤кий случай обрабатываем) ---
+    // --- Ответ на TEST (от CheckESP32, не должен сюда попасть,
+    //     но на всякий случай обрабатываем) ---
     if (data == "ESP32_OK" || data == "ESP32_READY")
     {
         SB_MAIN_STATUS_BAR->SimpleText = "ESP32: " + data;
         return;
     }
 
-    // ---  нопка CALC (D4) ---
-    // ‘ормат: "BTN_CALC:1" (нажата) или "BTN_CALC:0" (отпущена)
+    // --- Кнопка CALC (D4) ---
+    // Формат: "BTN_CALC:1" (нажата) или "BTN_CALC:0" (отпущена)
     if (data == "BTN_CALC:1")
     {
         LBL_CALC_STATUS->Caption = "INVOKE CALC.  PRESS D4.  STATUS: PRESSED";
-        SB_MAIN_STATUS_BAR->SimpleText = "D4 pressed Ч launching assigned program";
+        SB_MAIN_STATUS_BAR->SimpleText = "D4 pressed — launching assigned program";
         
-        // «апускаем программу назначенную на D4
+        // Запускаем программу назначенную на D4
         ExecuteD4Program();
         return;
     }
@@ -339,13 +339,13 @@ void TForm1::ParseData(AnsiString data)
         return;
     }
 
-    // ---  нопка PAINT (D16) ---
+    // --- Кнопка PAINT (D16) ---
     if (data == "BTN_PAINT:1")
     {
         LBL_PAINT_STATUS->Caption = "INVOKE PAINT. PRESS D16. STATUS: PRESSED";
-        SB_MAIN_STATUS_BAR->SimpleText = "D16 pressed Ч launching assigned program";
+        SB_MAIN_STATUS_BAR->SimpleText = "D16 pressed — launching assigned program";
         
-        // «апускаем программу назначенную на D16
+        // Запускаем программу назначенную на D16
         ExecuteD16Program();
         return;
     }
@@ -357,13 +357,13 @@ void TForm1::ParseData(AnsiString data)
         return;
     }
 
-    // --- ¬сЄ остальное Ч показываем в статусной строке ---
+    // --- Всё остальное — показываем в статусной строке ---
     SB_MAIN_STATUS_BAR->SimpleText = "ESP32: " + data;
 }
 
 //---------------------------------------------------------------------------
-// SetConnectedState Ч обновл¤ет весь UI в зависимости от состо¤ни¤
-// подключени¤. ≈дина¤ точка обновлени¤ интерфейса.
+// SetConnectedState — обновляет весь UI в зависимости от состояния
+// подключения. Единая точка обновления интерфейса.
 //---------------------------------------------------------------------------
 void TForm1::SetConnectedState(bool state, AnsiString port)
 {
@@ -374,13 +374,13 @@ void TForm1::SetConnectedState(bool state, AnsiString port)
         LBL_CONNECTION_STATUS->Caption =
             "CONNECTION STATUS: CONNECTED to " + port;
         LBL_CONNECTION_STATUS->Font->Color = clGreen;
-        BTN_CONNECT->Enabled    = false;  // Ќельз¤ подключитьс¤ повторно
+        BTN_CONNECT->Enabled    = false;  // Нельзя подключиться повторно
         BTN_DISCONNECT->Enabled = true;
-        CMB_COM_PORT->Enabled   = false;  // Ќельз¤ мен¤ть порт во врем¤ работы
-        TimerReadCom->Enabled   = true;   // «апускаем чтение порта
+        CMB_COM_PORT->Enabled   = false;  // Нельзя менять порт во время работы
+        TimerReadCom->Enabled   = true;   // Запускаем чтение порта
 
-        // —ообщаем ESP32 что Windows подключилась
-        // Ќебольша¤ пауза чтобы ESP32 успела переключитьс¤
+        // Сообщаем ESP32 что Windows подключилась
+        // Небольшая пауза чтобы ESP32 успела переключиться
         // из режима CheckESP32 в рабочий режим таймера
         Sleep(100);
         char cmd[] = "CONNECTED\n";
@@ -394,21 +394,21 @@ void TForm1::SetConnectedState(bool state, AnsiString port)
         BTN_CONNECT->Enabled    = true;
         BTN_DISCONNECT->Enabled = false;
         CMB_COM_PORT->Enabled   = true;
-        TimerReadCom->Enabled   = false;  // ќстанавливаем чтение порта
+        TimerReadCom->Enabled   = false;  // Останавливаем чтение порта
 
-        // —брасываем статусы кнопок
+        // Сбрасываем статусы кнопок
         LBL_CALC_STATUS->Caption  = "INVOKE CALC.  PRESS D4.  STATUS:";
         LBL_PAINT_STATUS->Caption = "INVOKE PAINT. PRESS D16. STATUS:";
 
-        // —брасываем флаг ожидани¤ команды
+        // Сбрасываем флаг ожидания команды
         commandPending = false;
         lastCommand    = "";
     }
 }
 
 //---------------------------------------------------------------------------
-// BTN_CONNECTClick Ч открывает порт, настраивает параметры,
-// провер¤ет что это наш ESP32, запускает таймер.
+// BTN_CONNECTClick — открывает порт, настраивает параметры,
+// проверяет что это наш ESP32, запускает таймер.
 //---------------------------------------------------------------------------
 void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
 {
@@ -418,7 +418,7 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
         return;
     }
 
-    // --- ѕолучаем им¤ порта из списка ---
+    // --- Получаем имя порта из списка ---
     if (CMB_COM_PORT->ItemIndex < 0 ||
         CMB_COM_PORT->Items->Strings[CMB_COM_PORT->ItemIndex] == "No COM ports found")
     {
@@ -428,30 +428,30 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
 
     String portName = CMB_COM_PORT->Items->Strings[CMB_COM_PORT->ItemIndex];
 
-    // --- ‘ормируем им¤ порта дл¤ Windows API ---
-    // COM1-COM9 открываютс¤ просто по имени: "COM3"
+    // --- Формируем имя порта для Windows API ---
+    // COM1-COM9 открываются просто по имени: "COM3"
     // COM10 и выше требуют специального префикса: "\\.\\COM13"
-    // Ѕез префикса CreateFile вернЄт ошибку дл¤ портов с двузначным номером
+    // Без префикса CreateFile вернёт ошибку для портов с двузначным номером
     String comPort;
     String numStr  = portName.SubString(4, portName.Length() - 3);
     int    portNum = StrToIntDef(numStr, 0);
 
     if (portNum > 9)
-        comPort = "\\\\.\\"+portName;   // COM10+: добавл¤ем префикс
+        comPort = "\\\\.\\"+portName;   // COM10+: добавляем префикс
     else
-        comPort = portName;             // COM1-COM9: оставл¤ем как есть
+        comPort = portName;             // COM1-COM9: оставляем как есть
 
-    // --- ќткрываем COM-порт через Windows API ---
-    // CreateFile Ч универсальна¤ функци¤ Windows дл¤ открыти¤ файлов и устройств.
-    // COM-порт дл¤ Windows тоже ¤вл¤етс¤ устройством Ч открываем так же как файл.
+    // --- Открываем COM-порт через Windows API ---
+    // CreateFile — универсальная функция Windows для открытия файлов и устройств.
+    // COM-порт для Windows тоже является устройством — открываем так же как файл.
     hCom = CreateFile(
-        comPort.c_str(),               // »м¤ порта в стиле C-строки
-        GENERIC_READ | GENERIC_WRITE,  // –азрешаем чтение и запись
-        0,                             // Ёксклюзивный доступ Ч никто другой не откроет
-        NULL,                          // Ѕезопасность по умолчанию
-        OPEN_EXISTING,                 // ќткрываем существующее устройство
-        FILE_ATTRIBUTE_NORMAL,         // ќбычные атрибуты
-        NULL                           // Ѕез шаблона
+        comPort.c_str(),               // Имя порта в стиле C-строки
+        GENERIC_READ | GENERIC_WRITE,  // Разрешаем чтение и запись
+        0,                             // Эксклюзивный доступ — никто другой не откроет
+        NULL,                          // Безопасность по умолчанию
+        OPEN_EXISTING,                 // Открываем существующее устройство
+        FILE_ATTRIBUTE_NORMAL,         // Обычные атрибуты
+        NULL                           // Без шаблона
     );
 
     if (hCom == INVALID_HANDLE_VALUE)
@@ -467,9 +467,9 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
         return;
     }
 
-    // --- Ќастраиваем параметры порта ---
-    // DCB (Device Control Block) Ч структура Windows с настройками порта.
-    // —начала читаем текущие настройки, потом мен¤ем только нужные нам четыре.
+    // --- Настраиваем параметры порта ---
+    // DCB (Device Control Block) — структура Windows с настройками порта.
+    // Сначала читаем текущие настройки, потом меняем только нужные нам четыре.
     DCB dcb = {0};
     dcb.DCBlength = sizeof(dcb);
 
@@ -481,11 +481,11 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
         return;
     }
 
-    // ”станавливаем параметры 115200 / 8N1 Ч стандарт дл¤ ESP32
-    dcb.BaudRate = CBR_115200;   // —корость 115200 бод Ч должна совпадать с ESP32
+    // Устанавливаем параметры 115200 / 8N1 — стандарт для ESP32
+    dcb.BaudRate = CBR_115200;   // Скорость 115200 бод — должна совпадать с ESP32
     dcb.ByteSize = 8;            // 8 бит данных
     dcb.StopBits = ONESTOPBIT;   // 1 стоп-бит
-    dcb.Parity   = NOPARITY;     // Ѕез проверки чЄтности
+    dcb.Parity   = NOPARITY;     // Без проверки чётности
 
     if (!SetCommState(hCom, &dcb))
     {
@@ -495,8 +495,8 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
         return;
     }
 
-    // --- Ё“јѕ 1: ћедленные таймауты дл¤ CheckESP32 ---
-    // ReadFile должен ∆ƒј“№ ответа Ч ESP32 нужно врем¤ чтобы ответить.
+    // --- ЭТАП 1: Медленные таймауты для CheckESP32 ---
+    // ReadFile должен ЖДАТЬ ответа — ESP32 нужно время чтобы ответить.
     COMMTIMEOUTS checkTO;
     checkTO.ReadIntervalTimeout         = 50;
     checkTO.ReadTotalTimeoutMultiplier  = 10;
@@ -514,9 +514,9 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
 
     PurgeComm(hCom, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
-    // --- ѕровер¤ем что это действительно наш ESP32 ---
+    // --- Проверяем что это действительно наш ESP32 ---
     SB_MAIN_STATUS_BAR->SimpleText = "Checking ESP32...";
-    Application->ProcessMessages();  // ƒаЄм UI обновитьс¤ пока идЄт проверка
+    Application->ProcessMessages();  // Даём UI обновиться пока идёт проверка
 
     if (!CheckESP32(hCom))
     {
@@ -531,11 +531,11 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
         return;
     }
 
-    // --- Ё“јѕ 2: Ѕыстрые таймауты дл¤ рабочего режима ---
-    // ReadFile должен возвращатьс¤ ћ√Ќќ¬≈ЌЌќ.
-    //  омбинаци¤ MAXDWORD + 0 + 0 означает:
-    // "если в буфере есть данные Ч отдай, нет Ч сразу вернись с 0 байт"
-    // Ѕез этого ReadFile заблокирует UI на врем¤ ожидани¤.
+    // --- ЭТАП 2: Быстрые таймауты для рабочего режима ---
+    // ReadFile должен возвращаться МГНОВЕННО.
+    // Комбинация MAXDWORD + 0 + 0 означает:
+    // "если в буфере есть данные — отдай, нет — сразу вернись с 0 байт"
+    // Без этого ReadFile заблокирует UI на время ожидания.
     COMMTIMEOUTS workTO;
     workTO.ReadIntervalTimeout         = 0xFFFFFFFF;  // MAXDWORD
     workTO.ReadTotalTimeoutMultiplier  = 0;
@@ -546,13 +546,13 @@ void __fastcall TForm1::BTN_CONNECTClick(TObject *Sender)
     SetCommTimeouts(hCom, &workTO);
     PurgeComm(hCom, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
-    // --- ¬сЄ готово Ч обновл¤ем UI и запускаем таймер ---
+    // --- Всё готово — обновляем UI и запускаем таймер ---
     SetConnectedState(true, portName);
     SB_MAIN_STATUS_BAR->SimpleText = "Connected to ESP32 on " + portName;
 }
 
 //---------------------------------------------------------------------------
-// BTN_DISCONNECTClick Ч закрывает порт и сбрасывает UI.
+// BTN_DISCONNECTClick — закрывает порт и сбрасывает UI.
 //---------------------------------------------------------------------------
 void __fastcall TForm1::BTN_DISCONNECTClick(TObject *Sender)
 {
@@ -562,14 +562,14 @@ void __fastcall TForm1::BTN_DISCONNECTClick(TObject *Sender)
         return;
     }
 
-    // ќстанавливаем таймер первым делом Ч прекращаем читать порт
+    // Останавливаем таймер первым делом — прекращаем читать порт
     TimerReadCom->Enabled = false;
 
     if (hCom != INVALID_HANDLE_VALUE)
     {
-        // ќтправл¤ем LED_OFF напр¤мую через WriteFile мину¤ SendCommand.
-        // ѕри отключении не нужна защита commandPending и не нужен ответ Ч
-        // просто отправл¤ем и сразу закрываем порт.
+        // Отправляем LED_OFF напрямую через WriteFile минуя SendCommand.
+        // При отключении не нужна защита commandPending и не нужен ответ —
+        // просто отправляем и сразу закрываем порт.
         char cmd[] = "DISCONNECTED\n";
         DWORD bytesWritten;
         WriteFile(hCom, cmd, strlen(cmd), &bytesWritten, NULL);
@@ -583,9 +583,9 @@ void __fastcall TForm1::BTN_DISCONNECTClick(TObject *Sender)
 }
 
 //---------------------------------------------------------------------------
-// TimerReadComTimer Ч срабатывает каждые 50 мс.
-// „итает всЄ что накопилось в буфере порта,
-// разбивает на строки и передаЄт каждую в ParseData.
+// TimerReadComTimer — срабатывает каждые 50 мс.
+// Читает всё что накопилось в буфере порта,
+// разбивает на строки и передаёт каждую в ParseData.
 //---------------------------------------------------------------------------
 void __fastcall TForm1::TimerReadComTimer(TObject *Sender)
 {
@@ -603,8 +603,8 @@ void __fastcall TForm1::TimerReadComTimer(TObject *Sender)
         {
             buffer[bytesRead] = '\0';
 
-            // –азбиваем полученные данные на строки.
-            // ћожет прийти сразу несколько сообщений, например:
+            // Разбиваем полученные данные на строки.
+            // Может прийти сразу несколько сообщений, например:
             // "BTN_CALC:1\nBTN_CALC:0\n"
             TStringList *lines = new TStringList();
             lines->Text = String(buffer);
@@ -621,28 +621,28 @@ void __fastcall TForm1::TimerReadComTimer(TObject *Sender)
     }
     else
     {
-        // ќшибка чтени¤ Ч порт мог отключитьс¤ физически
+        // Ошибка чтения — порт мог отключиться физически
         DWORD err = GetLastError();
         if (err == ERROR_BROKEN_PIPE || err == ERROR_INVALID_HANDLE)
         {
-            // ¬ызываем Disconnect как будто нажали кнопку
+            // Вызываем Disconnect как будто нажали кнопку
             BTN_DISCONNECTClick(NULL);
             ShowMessage("ESP32 disconnected unexpectedly!");
         }
     }
 
-    // ѕровер¤ем таймаут команды (5 секунд без ответа)
+    // Проверяем таймаут команды (5 секунд без ответа)
     if (commandPending && (GetTickCount() - commandStartTime > 5000))
     {
         commandPending = false;
-        SB_MAIN_STATUS_BAR->SimpleText = "Command timeout Ч no response from ESP32";
+        SB_MAIN_STATUS_BAR->SimpleText = "Command timeout — no response from ESP32";
     }
 }
 
 //---------------------------------------------------------------------------
-// BTN_PIN_TO_D4Click и BTN_PIN_TO_D16Click Ч
-// заглушки дл¤ „асти 3 (назначение любой программы).
-// ѕока ничего не делают.
+// BTN_PIN_TO_D4Click и BTN_PIN_TO_D16Click —
+// заглушки для Части 3 (назначение любой программы).
+// Пока ничего не делают.
 //---------------------------------------------------------------------------
 void __fastcall TForm1::BTN_PIN_TO_D4Click(TObject *Sender)
 {
@@ -672,24 +672,24 @@ void __fastcall TForm1::BTN_PIN_TO_D16Click(TObject *Sender)
     }
 }
 //---------------------------------------------------------------------------
-// FormClose Ч вызываетс¤ когда пользователь закрывает окно (крестик или Alt+F4)
+// FormClose — вызывается когда пользователь закрывает окно (крестик или Alt+F4)
 // 
-// TCloseAction &Action Ч параметр-ссылка, через него можно сказать:
-// "не закрывайс¤, ¤ передумал" (Action = caNone)
+// TCloseAction &Action — параметр-ссылка, через него можно сказать:
+// "не закрывайся, я передумал" (Action = caNone)
 void __fastcall TForm1::FormClose(TObject *Sender, TCloseAction &Action)
 {
-    // ѕеред закрытием сохран¤ем все настройки в INI-файл
-    // „тобы при следующем запуске всЄ было как пользователь настроил
+    // Перед закрытием сохраняем все настройки в INI-файл
+    // Чтобы при следующем запуске всё было как пользователь настроил
         SaveSettings();
 }
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-// LoadSettings Ч загружает пути к программам из INI файла
+// LoadSettings — загружает пути к программам из INI файла
 //---------------------------------------------------------------------------
 void TForm1::LoadSettings()
 {
-    // ќпредел¤ем путь к INI файлу (р¤дом с EXE)
+    // Определяем путь к INI файлу (рядом с EXE)
     String iniPath = ExtractFilePath(Application->ExeName) + "esp32_pins.ini";
     
     if (FileExists(iniPath))
@@ -705,13 +705,13 @@ void TForm1::LoadSettings()
     }
     else
     {
-        // ѕервый запуск Ч используем стандартные значени¤
+        // Первый запуск — используем стандартные значения
         SB_MAIN_STATUS_BAR->SimpleText = "Using default program paths";
     }
 }
 
 //---------------------------------------------------------------------------
-// SaveSettings Ч сохран¤ет пути к программам в INI файл
+// SaveSettings — сохраняет пути к программам в INI файл
 //---------------------------------------------------------------------------
 void TForm1::SaveSettings()
 {
@@ -726,19 +726,19 @@ void TForm1::SaveSettings()
 }
 
 //---------------------------------------------------------------------------
-// UpdateD4PathDisplay Ч обновл¤ет поле EDIT_D4 и подпись
+// UpdateD4PathDisplay — обновляет поле EDIT_D4 и подпись
 //---------------------------------------------------------------------------
 void TForm1::UpdateD4PathDisplay()
 {
     EDIT_D4->Text = D4_ProgramPath;
     
-    // »звлекаем только им¤ файла дл¤ краткой подписи
+    // Извлекаем только имя файла для краткой подписи
     String fileName = ExtractFileName(D4_ProgramPath);
     LBL_D4_PINNED_TO->Caption = "D4 PINNED TO: " + fileName;
 }
 
 //---------------------------------------------------------------------------
-// UpdateD16PathDisplay Ч обновл¤ет поле EDIT_D16 и подпись
+// UpdateD16PathDisplay — обновляет поле EDIT_D16 и подпись
 //---------------------------------------------------------------------------
 void TForm1::UpdateD16PathDisplay()
 {
@@ -749,7 +749,7 @@ void TForm1::UpdateD16PathDisplay()
 }
 
 //---------------------------------------------------------------------------
-// ExecuteD4Program Ч запускает программу назначенную на D4
+// ExecuteD4Program — запускает программу назначенную на D4
 //---------------------------------------------------------------------------
 void TForm1::ExecuteD4Program()
 {
@@ -759,14 +759,14 @@ void TForm1::ExecuteD4Program()
         return;
     }
     
-    // ѕреобразуем String в char* дл¤ WinExec
-    // »спользуем ShellExecute дл¤ лучшего контрол¤, но можно и WinExec
+    // Преобразуем String в char* для WinExec
+    // Используем ShellExecute для лучшего контроля, но можно и WinExec
     String cmd = "\"" + D4_ProgramPath + "\"";
     
     UINT result = WinExec(cmd.c_str(), SW_SHOW);
     if (result <= 31)
     {
-        // ѕробуем через ShellExecute если WinExec не справилс¤
+        // Пробуем через ShellExecute если WinExec не справился
         ShellExecute(NULL, "open", D4_ProgramPath.c_str(), NULL, NULL, SW_SHOW);
     }
     
@@ -774,7 +774,7 @@ void TForm1::ExecuteD4Program()
 }
 
 //---------------------------------------------------------------------------
-// ExecuteD16Program Ч запускает программу назначенную на D16
+// ExecuteD16Program — запускает программу назначенную на D16
 //---------------------------------------------------------------------------
 void TForm1::ExecuteD16Program()
 {

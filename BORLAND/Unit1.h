@@ -1,123 +1,123 @@
 //---------------------------------------------------------------------------
-#ifndef Unit1H  // ≈сли константа Unit1H ещЄ Ќ≈ определена...
-#define Unit1H  // ...то определ¤ем еЄ пр¤мо сейчас
+#ifndef Unit1H  // Если константа Unit1H ещё НЕ определена...
+#define Unit1H  // ...то определяем её прямо сейчас
 //---------------------------------------------------------------------------
-// “рюк с #ifndef / #define нужен чтобы файл не подключилс¤ дважды случайно.
-// ѕредставь что это как библиотечна¤ книга Ч мы ставим штамп "¬џƒјЌќ",
+// Трюк с #ifndef / #define нужен чтобы файл не подключился дважды случайно.
+// Представь что это как библиотечная книга — мы ставим штамп "ВЫДАНО",
 // чтобы второй раз ту же книгу не выдали другому читателю.
 
-// ѕодключаем библиотеки компонентов C++ Builder
-#include <Classes.hpp>    // Ѕазовые классы дл¤ всех объектов
-#include <Controls.hpp>   // Ёлементы управлени¤ (кнопки, пол¤ ввода)
-#include <StdCtrls.hpp>   // —тандартные контролы (TButton, TLabel, TEdit)
-#include <Forms.hpp>      // ‘орма Ч главное окно программы
-#include <ComCtrls.hpp>   // ƒополнительные контролы (TStatusBar)
-#include <ExtCtrls.hpp>   // TTimer Ч таймер, срабатывает через интервалы
-#include <Dialogs.hpp>    // TOpenDialog Ч стандартное окно "ќткрыть файл"
-#include <IniFiles.hpp>   // TIniFile Ч работа с INI-файлами настроек
+// Подключаем библиотеки компонентов C++ Builder
+#include <Classes.hpp>    // Базовые классы для всех объектов
+#include <Controls.hpp>   // Элементы управления (кнопки, поля ввода)
+#include <StdCtrls.hpp>   // Стандартные контролы (TButton, TLabel, TEdit)
+#include <Forms.hpp>      // Форма — главное окно программы
+#include <ComCtrls.hpp>   // Дополнительные контролы (TStatusBar)
+#include <ExtCtrls.hpp>   // TTimer — таймер, срабатывает через интервалы
+#include <Dialogs.hpp>    // TOpenDialog — стандартное окно "Открыть файл"
+#include <IniFiles.hpp>   // TIniFile — работа с INI-файлами настроек
 //---------------------------------------------------------------------------
 
-// ќбъ¤вл¤ем класс TForm1 Ч это главное окно нашей программы
-// ƒвоеточие после TForm означает "наследуем от TForm", то есть
-// берЄм всЄ что умеет обычна¤ форма и добавл¤ем свои возможности
+// Объявляем класс TForm1 — это главное окно нашей программы
+// Двоеточие после TForm означает "наследуем от TForm", то есть
+// берём всё что умеет обычная форма и добавляем свои возможности
 class TForm1 : public TForm
 {
-__published:  // ¬сЄ что ниже Ч видно в редакторе форм и доступно извне
-        // ========== √–”ѕѕј ѕќƒ Ћё„≈Ќ»я   ESP32 ==========
-        // TGroupBox Ч рамка с заголовком, объедин¤ет св¤занные элементы
+__published:  // Всё что ниже — видно в редакторе форм и доступно извне
+        // ========== ГРУППА ПОДКЛЮЧЕНИЯ К ESP32 ==========
+        // TGroupBox — рамка с заголовком, объединяет связанные элементы
         TGroupBox *GB_ESP_CONNECTION;
-        TLabel    *LBL_CONNECTION_STATUS;  // Ќадпись "CONNECTED" или "DISCONNECTED"
-        TLabel    *LBL_CHOOSE_COM_PORT;    // Ќадпись "Choose COM port:"
-        TComboBox *CMB_COM_PORT;           // ¬ыпадающий список COM-портов
-        TButton   *BTN_CONNECT;            //  нопка "Connect"
-        TButton   *BTN_DISCONNECT;         //  нопка "Disconnect"
+        TLabel    *LBL_CONNECTION_STATUS;  // Надпись "CONNECTED" или "DISCONNECTED"
+        TLabel    *LBL_CHOOSE_COM_PORT;    // Надпись "Choose COM port:"
+        TComboBox *CMB_COM_PORT;           // Выпадающий список COM-портов
+        TButton   *BTN_CONNECT;            // Кнопка "Connect"
+        TButton   *BTN_DISCONNECT;         // Кнопка "Disconnect"
 
-        // ========== √–”ѕѕј CALC / PAINT ==========
+        // ========== ГРУППА CALC / PAINT ==========
         TGroupBox *GB_ESP_INVOKE_CALC_PAINT;
-        TLabel    *LBL_CALC_STATUS;   // —татус кнопки CALC (нажата/отпущена)
-        TLabel    *LBL_PAINT_STATUS;  // —татус кнопки PAINT (нажата/отпущена)
+        TLabel    *LBL_CALC_STATUS;   // Статус кнопки CALC (нажата/отпущена)
+        TLabel    *LBL_PAINT_STATUS;  // Статус кнопки PAINT (нажата/отпущена)
 
-        // ========== √–”ѕѕј Ќј«Ќј„≈Ќ»я ЋёЅќ… ѕ–ќ√–јћћџ ==========
+        // ========== ГРУППА НАЗНАЧЕНИЯ ЛЮБОЙ ПРОГРАММЫ ==========
         TGroupBox *GB_ESP_INVOKE_ANY_PROGRAM;
-        TButton   *BTN_PIN_TO_D4;     //  нопка выбора программы дл¤ D4
-        TLabel    *LBL_D4_PINNED_TO;  // Ќадпись "D4 PINNED TO: calc.exe"
-        TEdit     *EDIT_D4;           // ѕоле с полным путЄм к программе (только чтение)
-        TButton   *BTN_PIN_TO_D16;    //  нопка выбора программы дл¤ D16
-        TLabel    *LBL_D16_PINNED_TO; // Ќадпись "D16 PINNED TO: mspaint.exe"
-        TEdit     *EDIT_D16;          // ѕоле с полным путЄм к программе (только чтение)
+        TButton   *BTN_PIN_TO_D4;     // Кнопка выбора программы для D4
+        TLabel    *LBL_D4_PINNED_TO;  // Надпись "D4 PINNED TO: calc.exe"
+        TEdit     *EDIT_D4;           // Поле с полным путём к программе (только чтение)
+        TButton   *BTN_PIN_TO_D16;    // Кнопка выбора программы для D16
+        TLabel    *LBL_D16_PINNED_TO; // Надпись "D16 PINNED TO: mspaint.exe"
+        TEdit     *EDIT_D16;          // Поле с полным путём к программе (только чтение)
 
-        // ========== —“ј“”—Ќјя —“–ќ ј (внизу окна) ==========
+        // ========== СТАТУСНАЯ СТРОКА (внизу окна) ==========
         TStatusBar *SB_MAIN_STATUS_BAR;
 
-        // ========== “ј…ћ≈– „“≈Ќ»я COM-ѕќ–“ј ==========
-        // —рабатывает каждые 50 миллисекунд и провер¤ет не пришли ли данные
+        // ========== ТАЙМЕР ЧТЕНИЯ COM-ПОРТА ==========
+        // Срабатывает каждые 50 миллисекунд и проверяет не пришли ли данные
         TTimer *TimerReadCom;
 
-        // ========== ƒ»јЋќ√ ¬џЅќ–ј ‘ј…Ћј ==========
-        // —тандартное окно Windows "ќткрыть", где можно выбрать .exe файл
+        // ========== ДИАЛОГ ВЫБОРА ФАЙЛА ==========
+        // Стандартное окно Windows "Открыть", где можно выбрать .exe файл
         TOpenDialog *OpenDialog1;
 
-        // ========== ќЅ–јЅќ“„» » —ќЅџ“»… ==========
-        //  огда что-то происходит (клик, создание формы, тик таймера)
-        // вызываютс¤ эти функции
+        // ========== ОБРАБОТЧИКИ СОБЫТИЙ ==========
+        // Когда что-то происходит (клик, создание формы, тик таймера)
+        // вызываются эти функции
         
-        // __fastcall Ч способ вызова функций в C++ Builder (быстрый вызов)
-        // TObject *Sender Ч тот кто вызвал событие (например, кака¤ кнопка)
-        void __fastcall FormCreate(TObject *Sender);      // ‘орма создаЄтс¤
-        void __fastcall BTN_CONNECTClick(TObject *Sender);    //  лик по Connect
-        void __fastcall BTN_DISCONNECTClick(TObject *Sender); //  лик по Disconnect
-        void __fastcall TimerReadComTimer(TObject *Sender);   // “ик таймера
-        void __fastcall BTN_PIN_TO_D4Click(TObject *Sender);  //  лик по PIN TO D4
-        void __fastcall BTN_PIN_TO_D16Click(TObject *Sender); //  лик по PIN TO D16
-        void __fastcall FormClose(TObject *Sender, TCloseAction &Action); // «акрытие формы
+        // __fastcall — способ вызова функций в C++ Builder (быстрый вызов)
+        // TObject *Sender — тот кто вызвал событие (например, какая кнопка)
+        void __fastcall FormCreate(TObject *Sender);      // Форма создаётся
+        void __fastcall BTN_CONNECTClick(TObject *Sender);    // Клик по Connect
+        void __fastcall BTN_DISCONNECTClick(TObject *Sender); // Клик по Disconnect
+        void __fastcall TimerReadComTimer(TObject *Sender);   // Тик таймера
+        void __fastcall BTN_PIN_TO_D4Click(TObject *Sender);  // Клик по PIN TO D4
+        void __fastcall BTN_PIN_TO_D16Click(TObject *Sender); // Клик по PIN TO D16
+        void __fastcall FormClose(TObject *Sender, TCloseAction &Action); // Закрытие формы
 
-private:  // ¬сЄ что ниже Ч скрыто от внешнего мира, только дл¤ внутреннего использовани¤
-        // ========== ƒ≈— –»ѕ“ќ– COM-ѕќ–“ј ==========
-        // HANDLE Ч это "номерок" который Windows выдаЄт когда мы открываем порт.
-        // „ерез этот номерок мы потом читаем и пишем в порт.
+private:  // Всё что ниже — скрыто от внешнего мира, только для внутреннего использования
+        // ========== ДЕСКРИПТОР COM-ПОРТА ==========
+        // HANDLE — это "номерок" который Windows выдаёт когда мы открываем порт.
+        // Через этот номерок мы потом читаем и пишем в порт.
         // INVALID_HANDLE_VALUE означает "порт не открыт"
         HANDLE hCom;
 
-        // ========== ‘Ћј√ ѕќƒ Ћё„≈Ќ»я ==========
+        // ========== ФЛАГ ПОДКЛЮЧЕНИЯ ==========
         // true = мы подключены к ESP32, false = не подключены
         bool connected;
 
-        // ========== ѕ≈–≈ћ≈ЌЌџ≈ ƒЋя ќ∆»ƒјЌ»я ќ“¬≈“ј ==========
-        //  огда мы отправл¤ем команду ESP32, мы ждЄм ответ.
-        // Ёти переменные помогают не отправл¤ть новую команду пока ждЄм.
-        bool          commandPending;   // true = ждЄм ответ от ESP32
-        AnsiString    lastCommand;      // ѕоследн¤¤ отправленна¤ команда (дл¤ справки)
-        unsigned long commandStartTime; //  огда отправили команду (в миллисекундах)
+        // ========== ПЕРЕМЕННЫЕ ДЛЯ ОЖИДАНИЯ ОТВЕТА ==========
+        // Когда мы отправляем команду ESP32, мы ждём ответ.
+        // Эти переменные помогают не отправлять новую команду пока ждём.
+        bool          commandPending;   // true = ждём ответ от ESP32
+        AnsiString    lastCommand;      // Последняя отправленная команда (для справки)
+        unsigned long commandStartTime; // Когда отправили команду (в миллисекундах)
 
-        // ========== ѕ”“»   Ќј«Ќј„≈ЌЌџћ ѕ–ќ√–јћћјћ ==========
-        // ’раним в пам¤ти полные пути к .exe файлам
-        String D4_ProgramPath;   // Ќапример: "C:\\Windows\\System32\\calc.exe"
-        String D16_ProgramPath;  // Ќапример: "C:\\Windows\\System32\\mspaint.exe"
+        // ========== ПУТИ К НАЗНАЧЕННЫМ ПРОГРАММАМ ==========
+        // Храним в памяти полные пути к .exe файлам
+        String D4_ProgramPath;   // Например: "C:\\Windows\\System32\\calc.exe"
+        String D16_ProgramPath;  // Например: "C:\\Windows\\System32\\mspaint.exe"
 
-        // ========== ѕ–»¬ј“Ќџ≈ ћ≈“ќƒџ (функции внутри класса) ==========
-        void RefreshComPorts();       // ќбновить список COM-портов из реестра Windows
-        bool CheckESP32(HANDLE hPort); // ѕроверить что на порту именно наш ESP32
-        void SendCommand(AnsiString command);  // ќтправить команду в порт
-        void ParseData(AnsiString data);       // –азобрать данные пришедшие от ESP32
-        void SetConnectedState(bool state, AnsiString port); // ќбновить UI при подключении/отключении
+        // ========== ПРИВАТНЫЕ МЕТОДЫ (функции внутри класса) ==========
+        void RefreshComPorts();       // Обновить список COM-портов из реестра Windows
+        bool CheckESP32(HANDLE hPort); // Проверить что на порту именно наш ESP32
+        void SendCommand(AnsiString command);  // Отправить команду в порт
+        void ParseData(AnsiString data);       // Разобрать данные пришедшие от ESP32
+        void SetConnectedState(bool state, AnsiString port); // Обновить UI при подключении/отключении
         
-        // Ќовые методы дл¤ работы с настройками
-        void LoadSettings();      // «агрузить пути к программам из INI-файла
-        void SaveSettings();      // —охранить пути к программам в INI-файл
-        void UpdateD4PathDisplay();   // ќбновить поле EDIT_D4 и подпись
-        void UpdateD16PathDisplay();  // ќбновить поле EDIT_D16 и подпись
-        void ExecuteD4Program();      // «апустить программу назначенную на D4
-        void ExecuteD16Program();     // «апустить программу назначенную на D16
+        // Новые методы для работы с настройками
+        void LoadSettings();      // Загрузить пути к программам из INI-файла
+        void SaveSettings();      // Сохранить пути к программам в INI-файл
+        void UpdateD4PathDisplay();   // Обновить поле EDIT_D4 и подпись
+        void UpdateD16PathDisplay();  // Обновить поле EDIT_D16 и подпись
+        void ExecuteD4Program();      // Запустить программу назначенную на D4
+        void ExecuteD16Program();     // Запустить программу назначенную на D16
 
-public:  // ¬сЄ что ниже Ч доступно всем кто использует этот класс
-        // ==========  ќЌ—“–” “ќ– ==========
-        // ¬ызываетс¤ когда создаЄтс¤ объект формы (при запуске программы)
+public:  // Всё что ниже — доступно всем кто использует этот класс
+        // ========== КОНСТРУКТОР ==========
+        // Вызывается когда создаётся объект формы (при запуске программы)
         __fastcall TForm1(TComponent* Owner);
 };
 //---------------------------------------------------------------------------
-// extern означает "эта переменна¤ существует где-то в другом файле"
-// PACKAGE Ч специальный тип дл¤ C++ Builder
-// Form1 Ч глобальна¤ переменна¤, через неЄ мы обращаемс¤ к главному окну
+// extern означает "эта переменная существует где-то в другом файле"
+// PACKAGE — специальный тип для C++ Builder
+// Form1 — глобальная переменная, через неё мы обращаемся к главному окну
 extern PACKAGE TForm1 *Form1;
 //---------------------------------------------------------------------------
-#endif  //  онец услови¤ #ifndef Unit1H Ч закрываем защиту от повторного включени¤
+#endif  // Конец условия #ifndef Unit1H — закрываем защиту от повторного включения
