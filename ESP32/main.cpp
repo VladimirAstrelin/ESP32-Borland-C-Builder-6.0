@@ -3,60 +3,66 @@
 // Связь с Windows программой через COM-порт (USB Serial)
 //
 // ЖЕЛЕЗО:
-//   ESP32 Dev Module  — основная плата
-//   SSD1306 128x64    — OLED дисплей
-//   BTN_CALC  на D4   — кнопка запуска Calculator
-//   BTN_PAINT на D16  — кнопка запуска MS Paint
+//   ESP32 Dev Module  — основная плата (микроконтроллер)
+//   SSD1306 128x64    — OLED дисплей (экранчик 128 на 64 пикселя)
+//   BTN_CALC  на D4   — кнопка запуска программы для D4
+//   BTN_PAINT на D16  — кнопка запуска программы для D16
 //   LED       на D2   — встроенный светодиод ESP32
 //
-// ПРОТОКОЛ ОБЩЕНИЯ С WINDOWS:
-//   Windows → ESP32:  "TEST\n"
-//   ESP32   → Windows: "ESP32_READY" (при старте)
-//                      "ESP32_OK"    (ответ на TEST)
-//                      "BTN_CALC:1"  (кнопка D4 нажата)
-//                      "BTN_CALC:0"  (кнопка D4 отпущена)
-//                      "BTN_PAINT:1" (кнопка D16 нажата)
-//                      "BTN_PAINT:0" (кнопка D16 отпущена)
+// ПРОТОКОЛ ОБЩЕНИЯ С WINDOWS (язык на котором общаются):
+//   Windows → ESP32:  "TEST\n"         (проверка связи)
+//   ESP32   → Windows: "ESP32_READY"   (при старте, я готов)
+//                      "ESP32_OK"      (ответ на TEST, да это я)
+//                      "BTN_CALC:1"    (кнопка D4 нажата)
+//                      "BTN_CALC:0"    (кнопка D4 отпущена)
+//                      "BTN_PAINT:1"   (кнопка D16 нажата)
+//                      "BTN_PAINT:0"   (кнопка D16 отпущена)
 // =====================================================
 
-#include <Arduino.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+// Подключаем библиотеки для работы с железом
+#include <Arduino.h>      // Главная библиотека Arduino (функции pinMode, digitalRead и т.д.)
+#include <Wire.h>         // Протокол I2C — по нему общаемся с дисплеем
+#include <Adafruit_GFX.h> // Библиотека для рисования на дисплеях (графика)
+#include <Adafruit_SSD1306.h> // Библиотека конкретно для дисплея SSD1306
 
 // =====================================================
-// НАСТРОЙКИ
+// НАСТРОЙКИ (константы, которые не меняются)
 // =====================================================
+// #define — это как "найти и заменить" перед компиляцией
+// Везде где написано SCREEN_WIDTH — подставится 128
 
-#define SCREEN_WIDTH  128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET    -1
-#define OLED_ADDR     0x3C
+#define SCREEN_WIDTH  128  // Ширина дисплея в пикселях
+#define SCREEN_HEIGHT 64   // Высота дисплея в пикселях
+#define OLED_RESET    -1   // Пин сброса дисплея (-1 = не используется)
+#define OLED_ADDR     0x3C // I2C адрес дисплея (как номер квартиры на общей шине)
 
-#define LED_PIN       2    // Встроенный светодиод ESP32
-#define BTN_CALC      4    // Кнопка D4 — запуск Calculator
-#define BTN_PAINT     16   // Кнопка D16 — запуск MS Paint
+#define LED_PIN       2    // Встроенный светодиод подключён к пину D2
+#define BTN_CALC      4    // Кнопка CALC подключена к пину D4
+#define BTN_PAINT     16   // Кнопка PAINT подключена к пину D16
 
-#define DEBOUNCE_MS   5    // Время антидребезга (мс)
-#define BTN_SEND_MS   50   // Минимальный интервал между отправками (мс)
+#define DEBOUNCE_MS   5    // Время антидребезга в миллисекундах
+#define BTN_SEND_MS   50   // Минимальный интервал между отправками (защита от спама)
 
 // =====================================================
 // ОБЪЕКТ ДИСПЛЕЯ
 // =====================================================
-
+// Создаём объект display для работы с нашим экранчиком
+// Параметры: ширина, высота, интерфейс (Wire = I2C), пин сброса
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // =====================================================
 // ПЕРЕМЕННЫЕ СОСТОЯНИЯ КНОПОК
-// Для каждой кнопки — свой независимый набор переменных
+// 
+// Для КАЖДОЙ кнопки свой набор переменных.
+// Это нужно чтобы кнопки работали НЕЗАВИСИМО друг от друга.
 // =====================================================
 
 // --- Кнопка CALC (D4) ---
 int           calcRaw          = HIGH;  // Сырое (с дребезгом) состояние пина
 int           calcLastStable   = HIGH;  // Подтверждённое состояние после антидребезга
-unsigned long calcDebounceStart = 0;   // Момент когда сигнал начал меняться
-bool          calcPressed       = false; // Логическое состояние для дисплея
-unsigned long calcLastSendTime  = 0;   // Время последней отправки в Serial
+unsigned long calcDebounceStart = 0;    // Момент когда сигнал начал меняться (в мс)
+bool          calcPressed       = false; // Логическое состояние для отображения
+unsigned long calcLastSendTime  = 0;    // Время последней отправки в Serial (для защиты от спама)
 
 // --- Кнопка PAINT (D16) ---
 int           paintRaw          = HIGH;
@@ -66,193 +72,217 @@ bool          paintPressed       = false;
 unsigned long paintLastSendTime  = 0;
 
 // --- Флаг обновления дисплея ---
+// Если true — при следующей итерации loop() дисплей перерисуется
 bool displayNeedsUpdate = false;
 
-// УТОЧНИТЬ ДЛЯ ЧЕГО ЭТА ПЕРЕМЕННАЯ
+// --- Статус подключения к Windows ---
+// true = Windows программа подключена и общается с нами
+// false = Windows программа отключена
 bool displayConnected = false;
 
 // =====================================================
 // ФУНКЦИЯ: обновление дисплея
+// 
+// Полностью перерисовывает всё что на экране
+// Вызывается когда что-то изменилось (кнопка нажата, статус подключения)
 // =====================================================
-
 void updateDisplay() {
-    display.clearDisplay();
-    display.setTextSize(1);
-
-    display.setCursor(0, 0);
+    display.clearDisplay();  // Стираем всё с экрана
+    
+    display.setTextSize(1);  // Размер текста: 1 = самый маленький
+    display.setCursor(0, 0); // Ставим курсор в левый верхний угол (x=0, y=0)
+    
     // Заголовок меняется в зависимости от состояния подключения
     if (displayConnected) {
-        display.println(" ESP32: PC CONNECTED");
+        display.println(" ESP32: PC CONNECTED");  // println — печатает и переводит строку
     } else {
         display.println("  ESP32 CALC & PAINT");
     }
+    
+    // Рисуем горизонтальную линию-разделитель
+    // Параметры: x1, y1, x2, y2, цвет
     display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
 
+    // Показываем состояние кнопки CALC
     display.setCursor(0, 18);
-    display.print("CALC  (D4):  ");
+    display.print("CALC  (D4):  ");  // print — печатает без перевода строки
+    // Тернарный оператор: условие ? значение_если_да : значение_если_нет
     display.println(calcPressed ? "PRESSED" : "released");
 
+    // Показываем состояние кнопки PAINT
     display.setCursor(0, 36);
     display.print("PAINT (D16): ");
     display.println(paintPressed ? "PRESSED" : "released");
 
+    // В самом низу показываем статус подключения к Windows
     display.setCursor(0, 54);
-    // Внизу тоже показываем статус подключения
     display.println(displayConnected ? "Windows: ONLINE" : "Windows: offline");
 
+    // display() — отправляем всё что нарисовали на физический экран
     display.display();
 }
 
 // =====================================================
 // ФУНКЦИЯ: обработка одной кнопки с антидребезгом
-//
-// Принимает все переменные кнопки по ссылке (&) —
-// работает напрямую с оригинальными переменными.
+// 
+// Эта функция — "мозг" обработки кнопки. Она:
+// 1. Читает сырое состояние пина (с дребезгом)
+// 2. Ждёт DEBOUNCE_MS миллисекунд чтобы убедиться что сигнал стабилен
+// 3. Если состояние действительно изменилось — отправляет сообщение в Serial
+// 
+// Параметры передаются ПО ССЫЛКЕ (знак &) — функция работает напрямую
+// с оригинальными переменными, а не с их копиями.
 // =====================================================
-
 void processButton(
-  int pin,
-  int &raw,
-  int &lastStable,
-  unsigned long &debounceStart,
-  bool &pressed,
-  unsigned long &lastSendTime,
-  const char* pressMsg,
-  const char* releaseMsg)
+  int pin,                     // Номер пина к которому подключена кнопка
+  int &raw,                    // Сырое состояние (ссылка)
+  int &lastStable,             // Последнее стабильное состояние (ссылка)
+  unsigned long &debounceStart, // Время начала дребезга (ссылка)
+  bool &pressed,               // Нажата ли кнопка (ссылка)
+  unsigned long &lastSendTime, // Время последней отправки (ссылка)
+  const char* pressMsg,        // Сообщение при нажатии ("BTN_CALC:1")
+  const char* releaseMsg)      // Сообщение при отпускании ("BTN_CALC:0")
 {
+  // Читаем текущее состояние пина
+  // digitalRead возвращает HIGH (1) или LOW (0)
+  // Кнопка подключена через INPUT_PULLUP — значит:
+  //   HIGH = кнопка НЕ нажата
+  //   LOW  = кнопка НАЖАТА
   int currentRaw = digitalRead(pin);
 
-  // Если сигнал изменился — начинаем отсчёт антидребезга заново
+  // Если сигнал ИЗМЕНИЛСЯ (был HIGH стал LOW или наоборот)
+  // Это может быть начало дребезга
   if (currentRaw != raw) {
-    raw           = currentRaw;
-    debounceStart = millis();
+    raw           = currentRaw;      // Запоминаем новое сырое состояние
+    debounceStart = millis();        // Запоминаем КОГДА произошло изменение
   }
 
-  // Если сигнал стабилен дольше DEBOUNCE_MS — это настоящее нажатие
+  // Проверяем два условия:
+  // 1. Прошло ли больше DEBOUNCE_MS с момента последнего изменения
+  // 2. Отличается ли текущее состояние от последнего СТАБИЛЬНОГО
+  // 
+  // millis() возвращает количество миллисекунд с момента старта ESP32
   if (millis() - debounceStart >= DEBOUNCE_MS && currentRaw != lastStable) {
-    lastStable = currentRaw;
+    lastStable = currentRaw;  // Запоминаем новое стабильное состояние
 
-    // Защита от спама — не чаще BTN_SEND_MS
+    // Защита от спама — не отправляем сообщения чаще чем раз в BTN_SEND_MS
     if (millis() - lastSendTime >= BTN_SEND_MS) {
-      lastSendTime = millis();
+      lastSendTime = millis();  // Обновляем время последней отправки
 
-      if (lastStable == LOW) {
+      if (lastStable == LOW) {      // LOW = кнопка НАЖАТА
         pressed = true;
-        Serial.println(pressMsg);   // например "BTN_CALC:1"
-      } else {
+        Serial.println(pressMsg);   // Отправляем в Serial (например "BTN_CALC:1")
+      } else {                      // HIGH = кнопка ОТПУЩЕНА
         pressed = false;
-        Serial.println(releaseMsg); // например "BTN_CALC:0"
+        Serial.println(releaseMsg); // Отправляем (например "BTN_CALC:0")
       }
 
-      displayNeedsUpdate = true;
+      displayNeedsUpdate = true;  // Говорим что нужно обновить дисплей
     }
   }
 }
 
 // =====================================================
-// setup() — выполняется один раз при старте
+// setup() — выполняется ОДИН РАЗ при старте ESP32
+// 
+// Здесь мы настраиваем всё железо и говорим "я готов"
 // =====================================================
-
 void setup() {
-  pinMode(LED_PIN,   OUTPUT);
-  pinMode(BTN_CALC,  INPUT_PULLUP);
-  pinMode(BTN_PAINT, INPUT_PULLUP);
-  digitalWrite(LED_PIN, LOW);
+  // Настраиваем пины на вход или выход
+  pinMode(LED_PIN,   OUTPUT);       // Светодиод — ВЫХОД (мы им управляем)
+  pinMode(BTN_CALC,  INPUT_PULLUP); // Кнопка — ВХОД с подтяжкой к питанию
+  pinMode(BTN_PAINT, INPUT_PULLUP); // INPUT_PULLUP включает встроенный резистор
+  
+  digitalWrite(LED_PIN, LOW);       // Выключаем светодиод (LOW = 0 вольт)
 
+  // Запускаем Serial (связь с компьютером через USB)
+  // 115200 — скорость в бодах (бит в секунду), должна совпадать с Windows
   Serial.begin(115200);
 
-  // Ждём пока USB-соединение установится.
-  // Важно: Windows программа отправит TEST только после
-  // того как порт откроется — ESP32 должна быть готова.
+  // Ждём 1 секунду чтобы USB-соединение установилось
   delay(1000);
 
-  // Сообщаем о готовности — Windows программа ищет эту строку
-  // среди первых сообщений при подключении
+  // Сообщаем компьютеру что ESP32 готова к работе
+  // Windows программа ищет эту строку среди первых сообщений
   Serial.println("ESP32_READY");
 
   // Инициализация дисплея
+  // SSD1306_SWITCHCAPVCC — тип питания дисплея (внутренний повышающий преобразователь)
+  // OLED_ADDR — I2C адрес (0x3C)
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
+    // Если дисплей не найден — сообщаем об ошибке
     Serial.println("Display init failed!");
+    // Бесконечный цикл — мигаем светодиодом в знак ошибки
     while (true) {
-      digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-      delay(200);
+      digitalWrite(LED_PIN, !digitalRead(LED_PIN));  // Переключаем светодиод
+      delay(200);  // Ждём 200 мс
     }
   }
 
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(1);
-  updateDisplay();
+  // Настраиваем дисплей
+  display.clearDisplay();                // Очищаем
+  display.setTextColor(SSD1306_WHITE);   // Белый текст (монохромный дисплей)
+  display.setTextSize(1);                // Размер текста 1
+  updateDisplay();                       // Рисуем первый кадр
 
-  Serial.println("Ready.");
+  Serial.println("Ready.");  // Сообщаем в Serial что всё готово
 }
 
 // =====================================================
-// loop() — выполняется бесконечно
-//
-// Структура каждой итерации:
-//   1. Чтение команд от Windows (Serial)
-//   2. Обработка кнопки CALC  (антидребезг)
-//   3. Обработка кнопки PAINT (антидребезг)
-//   4. Обновление дисплея     (если нужно)
+// loop() — выполняется БЕСКОНЕЧНО после setup()
+// 
+// Это главный цикл программы. Каждую итерацию мы:
+//   1. Проверяем не пришли ли команды от Windows
+//   2. Обрабатываем кнопку CALC (антидребезг)
+//   3. Обрабатываем кнопку PAINT (антидребезг)
+//   4. Обновляем дисплей (если нужно)
 // =====================================================
-
 void loop() {
 
-  // =====================================================
-  // 1. КОМАНДЫ ОТ WINDOWS ПРОГРАММЫ
-  //
-  // Windows отправляет команды заканчивающиеся на \n.
-  // readStringUntil('\n') читает всё до символа \n.
-  // trim() убирает лишние пробелы и \r по краям.
-  // =====================================================
+  // ========== 1. КОМАНДЫ ОТ WINDOWS ==========
+  // Serial.available() возвращает сколько байт ждёт в буфере
   if (Serial.available() > 0) {
+    // readStringUntil('\n') — читает всё до символа новой строки
     String command = Serial.readStringUntil('\n');
-    command.trim();
+    command.trim();  // Убираем пробелы и \r по краям
 
     // ---------- TEST ----------
-    // Windows программа отправляет TEST при подключении
-    // чтобы убедиться что на другом конце именно наш ESP32.
-    // Мы должны ответить "ESP32_OK" — именно эту строку
-    // ищет CheckESP32() в Windows программе.
+    // Windows отправляет TEST чтобы убедиться что это ESP32
     if (command == "TEST") {
-      Serial.println("ESP32_OK");
+      Serial.println("ESP32_OK");  // Отвечаем — да, это я!
     }
-        // Новое: Windows сообщает что подключение установлено
+    
+    // ---------- CONNECTED ----------
+    // Windows сообщает что подключение установлено
     else if (command == "CONNECTED") {
-        // Показываем на дисплее что связь с Windows активна
-        displayConnected = true;
-        displayNeedsUpdate = true;
-        Serial.println("CONNECTED_OK");
+      displayConnected = true;      // Запоминаем что подключены
+      displayNeedsUpdate = true;    // Просим обновить дисплей
+      Serial.println("CONNECTED_OK");
     }
 
-    // Новое: Windows сообщает что отключилась
+    // ---------- DISCONNECTED ----------
+    // Windows сообщает что отключилась
     else if (command == "DISCONNECTED") {
-        displayConnected = false;
-        displayNeedsUpdate = true;
+      displayConnected = false;     // Запоминаем что отключены
+      displayNeedsUpdate = true;    // Просим обновить дисплей
     }
-
-    // Здесь в будущем можно добавить другие команды от Windows
-    // по образцу: else if (command == "XXX") { ... }
   }
 
-  // =====================================================
-  // 2. КНОПКА CALC (D4)
-  // =====================================================
+  // ========== 2. КНОПКА CALC (D4) ==========
+  // Вызываем функцию обработки и передаём ВСЕ переменные этой кнопки
   processButton(
-    BTN_CALC,
-    calcRaw,
-    calcLastStable,
-    calcDebounceStart,
-    calcPressed,
-    calcLastSendTime,
-    "BTN_CALC:1",
-    "BTN_CALC:0"
+    BTN_CALC,           // Пин D4
+    calcRaw,            // Сырое состояние
+    calcLastStable,     // Стабильное состояние
+    calcDebounceStart,  // Время начала дребезга
+    calcPressed,        // Нажата ли
+    calcLastSendTime,   // Время последней отправки
+    "BTN_CALC:1",       // Сообщение при нажатии
+    "BTN_CALC:0"        // Сообщение при отпускании
   );
 
-  // =====================================================
-  // 3. КНОПКА PAINT (D16)
-  // =====================================================
+  // ========== 3. КНОПКА PAINT (D16) ==========
+  // Всё то же самое для второй кнопки
   processButton(
     BTN_PAINT,
     paintRaw,
@@ -264,13 +294,12 @@ void loop() {
     "BTN_PAINT:0"
   );
 
-  // =====================================================
-  // 4. ОБНОВЛЕНИЕ ДИСПЛЕЯ
-  // =====================================================
+  // ========== 4. ОБНОВЛЕНИЕ ДИСПЛЕЯ ==========
+  // Если флаг displayNeedsUpdate установлен — перерисовываем экран
   if (displayNeedsUpdate) {
     updateDisplay();
-    displayNeedsUpdate = false;
+    displayNeedsUpdate = false;  // Сбрасываем флаг
   }
 
-  delay(1);
+  delay(1);  // Маленькая пауза (1 мс) чтобы дать процессору передохнуть
 }
