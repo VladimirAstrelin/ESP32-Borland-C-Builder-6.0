@@ -1,9 +1,9 @@
 object Form1: TForm1
-  Left = 891
-  Top = 280
-  Width = 401
-  Height = 565
-  Caption = 'ESP32_CALC_PAINT'
+  Left = 420
+  Top = 249
+  Width = 557
+  Height = 637
+  Caption = 'ESP_EXPERIMENT'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,13 +11,14 @@ object Form1: TForm1
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = False
+  OnClose = FormClose
   OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object GB_ESP_CONNECTION: TGroupBox
     Left = 24
     Top = 16
-    Width = 337
+    Width = 409
     Height = 161
     Caption = 'ESP CONNECTION TO PC'
     TabOrder = 0
@@ -71,16 +72,16 @@ object Form1: TForm1
   object GB_ESP_INVOKE_CALC_PAINT: TGroupBox
     Left = 24
     Top = 200
-    Width = 337
+    Width = 409
     Height = 97
-    Caption = 'ESP INVOKE CALC OR PAINT'
+    Caption = 'BUTTONS STATUS'
     TabOrder = 1
     object LBL_CALC_STATUS: TLabel
       Left = 16
       Top = 24
-      Width = 216
+      Width = 70
       Height = 13
-      Caption = 'INVOKE CALC. PRESS D4. STATUS :'
+      Caption = 'D4 STATUS'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
@@ -90,10 +91,23 @@ object Form1: TForm1
     end
     object LBL_PAINT_STATUS: TLabel
       Left = 16
-      Top = 56
-      Width = 229
+      Top = 48
+      Width = 77
       Height = 13
-      Caption = 'INVOKE PAINT. PRESS D16. STATUS :'
+      Caption = 'D16 STATUS'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object LBL_D17_STATUS: TLabel
+      Left = 16
+      Top = 72
+      Width = 77
+      Height = 13
+      Caption = 'D17 STATUS'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
@@ -105,13 +119,13 @@ object Form1: TForm1
   object GB_ESP_INVOKE_ANY_PROGRAM: TGroupBox
     Left = 24
     Top = 320
-    Width = 337
-    Height = 161
+    Width = 409
+    Height = 217
     Caption = 'ESP INVOKE ANY WINDOWS PROGRAM'
     TabOrder = 2
     object LBL_D4_PINNED_TO: TLabel
-      Left = 8
-      Top = 56
+      Left = 104
+      Top = 24
       Width = 97
       Height = 13
       Caption = 'D4 PINNED TO :'
@@ -123,11 +137,24 @@ object Form1: TForm1
       ParentFont = False
     end
     object LBL_D16_PINNED_TO: TLabel
-      Left = 8
-      Top = 119
+      Left = 104
+      Top = 87
       Width = 104
       Height = 13
       Caption = 'D16 PINNED TO :'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object LBL_D17_PINNED_TO: TLabel
+      Left = 104
+      Top = 152
+      Width = 104
+      Height = 13
+      Caption = 'D17 PINNED TO :'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
@@ -139,7 +166,7 @@ object Form1: TForm1
       Left = 8
       Top = 24
       Width = 75
-      Height = 25
+      Height = 41
       Caption = 'PIN TO D4'
       TabOrder = 0
       OnClick = BTN_PIN_TO_D4Click
@@ -148,16 +175,48 @@ object Form1: TForm1
       Left = 8
       Top = 87
       Width = 75
-      Height = 25
+      Height = 42
       Caption = 'PIN TO D16'
       TabOrder = 1
       OnClick = BTN_PIN_TO_D16Click
     end
+    object EDIT_D4: TEdit
+      Left = 104
+      Top = 40
+      Width = 289
+      Height = 21
+      ReadOnly = True
+      TabOrder = 2
+    end
+    object EDIT_D16: TEdit
+      Left = 104
+      Top = 104
+      Width = 289
+      Height = 21
+      ReadOnly = True
+      TabOrder = 3
+    end
+    object BTN_PIN_TO_D17: TButton
+      Left = 8
+      Top = 152
+      Width = 75
+      Height = 41
+      Caption = 'PIN TO D17'
+      TabOrder = 4
+      OnClick = BTN_PIN_TO_D17Click
+    end
+    object EDIT_D17: TEdit
+      Left = 104
+      Top = 168
+      Width = 289
+      Height = 21
+      TabOrder = 5
+    end
   end
   object SB_MAIN_STATUS_BAR: TStatusBar
     Left = 0
-    Top = 507
-    Width = 385
+    Top = 579
+    Width = 541
     Height = 19
     Panels = <>
     SimplePanel = False
@@ -166,7 +225,11 @@ object Form1: TForm1
     Enabled = False
     Interval = 50
     OnTimer = TimerReadComTimer
-    Left = 352
-    Top = 472
+    Left = 440
+    Top = 24
+  end
+  object OpenDialog1: TOpenDialog
+    Left = 440
+    Top = 56
   end
 end
