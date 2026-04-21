@@ -29,15 +29,6 @@ __published:
     TButton   *BTN_DISCONNECT;
 
     // ================================================================
-    // БЛОК 2: СТАТУС КНОПОК ESP32
-    // Отображение состояния трёх кнопок D4, D16, D17
-    // ================================================================
-    TGroupBox *GB_ESP_INVOKE_CALC_PAINT;
-    TLabel    *LBL_CALC_STATUS;    // Статус кнопки D4
-    TLabel    *LBL_PAINT_STATUS;   // Статус кнопки D16
-    TLabel    *LBL_D17_STATUS;     // Статус кнопки D17
-
-    // ================================================================
     // БЛОК 3: НАЗНАЧЕНИЕ ПРОГРАММ НА КНОПКИ
     // ================================================================
     TGroupBox *GB_ESP_INVOKE_ANY_PROGRAM;
@@ -52,7 +43,7 @@ __published:
     TLabel    *LBL_D16_PINNED_TO;
     TEdit     *EDIT_D16;
 
-    // --- Кнопка D17 (новая) ---
+    // --- Кнопка D17 ---
     TButton   *BTN_PIN_TO_D17;
     TLabel    *LBL_D17_PINNED_TO;
     TEdit     *EDIT_D17;
@@ -113,12 +104,12 @@ private:
     // --- Группа 3: Обновление UI ---
     void UpdateD4PathDisplay();
     void UpdateD16PathDisplay();
-    void UpdateD17PathDisplay();  
+    void UpdateD17PathDisplay();  // новая
 
     // --- Группа 4: Запуск программ ---
     void ExecuteD4Program();
     void ExecuteD16Program();
-    void ExecuteD17Program();     
+    void ExecuteD17Program();     // новая
 
 public:
     __fastcall TForm1(TComponent* Owner);
