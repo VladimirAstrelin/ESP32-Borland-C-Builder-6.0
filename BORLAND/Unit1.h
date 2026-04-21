@@ -1,209 +1,130 @@
 //---------------------------------------------------------------------------
 // ФАЙЛ: Unit1.h
-// НАЗНАЧЕНИЕ: Описание главного окна программы ESP32 CALC & PAINT
-//
-// Этот файл — как "оглавление книги". Он описывает ЧТО есть в программе,
-// но не объясняет КАК это работает. Реализация — в Unit1.cpp.
-//
-// ЗАЩИТА ОТ ДВОЙНОГО ВКЛЮЧЕНИЯ:
-// Представь что препроцессор читает все файлы подряд.
-// Если Unit1.h включён дважды — компилятор увидит два одинаковых класса
-// и выдаст ошибку. Трюк с #ifndef решает эту проблему:
-// при первом включении константа Unit1H не определена — заходим внутрь.
-// При втором включении она уже определена — пропускаем весь файл.
+// НАЗНАЧЕНИЕ: Описание главного окна программы ESP32 Button Launcher
 //---------------------------------------------------------------------------
-#ifndef Unit1H   // "если Unit1H ещё НЕ определена..."
-#define Unit1H   // "...определяем её, чтобы второй раз не зайти"
+#ifndef Unit1H
+#define Unit1H
 
-//---------------------------------------------------------------------------
-// ПОДКЛЮЧЕНИЕ БИБЛИОТЕК КОМПОНЕНТОВ C++ BUILDER
-// Каждая библиотека даёт нам доступ к определённым компонентам.
-// Без этих строк компилятор не знает что такое TButton, TLabel и т.д.
-//---------------------------------------------------------------------------
-#include <Classes.hpp>    // Базовые классы: TObject, TComponent и другие
-#include <Controls.hpp>   // Базовые элементы управления
-#include <StdCtrls.hpp>   // Стандартные контролы: TButton, TLabel, TEdit, TComboBox
-#include <Forms.hpp>      // TForm — базовый класс для всех окон
-#include <ComCtrls.hpp>   // TStatusBar и другие сложные контролы
-#include <ExtCtrls.hpp>   // TTimer — таймер, TShape — фигуры
-#include <Dialogs.hpp>    // TOpenDialog — стандартное окно "Открыть файл" Windows
-#include <IniFiles.hpp>   // TIniFile — чтение и запись INI файлов настроек
+#include <Classes.hpp>
+#include <Controls.hpp>
+#include <StdCtrls.hpp>
+#include <Forms.hpp>
+#include <ComCtrls.hpp>
+#include <ExtCtrls.hpp>   // TTimer
+#include <Dialogs.hpp>    // TOpenDialog
+#include <IniFiles.hpp>   // TIniFile
 
-//---------------------------------------------------------------------------
-// ОБЪЯВЛЕНИЕ КЛАССА ГЛАВНОГО ОКНА
-//
-// class TForm1 : public TForm — объявляем новый класс TForm1.
-// Двоеточие означает "наследуется от".
-// public TForm — наследуем от стандартного класса окна.
-//
-// Что даёт наследование от TForm:
-// TForm уже умеет создавать окно Windows, рисовать рамку, заголовок,
-// обрабатывать системные сообщения (закрыть, свернуть, изменить размер).
-// Мы получаем всё это БЕСПЛАТНО и просто добавляем своё поверх.
-//---------------------------------------------------------------------------
 class TForm1 : public TForm
 {
-// __published — специальная секция C++ Builder.
-// Всё что здесь — видно в визуальном редакторе форм (Form Designer).
-// IDE автоматически заполняет эту секцию когда мы бросаем компоненты на форму.
 __published:
 
     // ================================================================
     // БЛОК 1: ПОДКЛЮЧЕНИЕ К ESP32
-    // Всё для установки связи с микроконтроллером через COM-порт
     // ================================================================
-    TGroupBox *GB_ESP_CONNECTION;       // Рамка с заголовком "ESP CONNECTION TO PC"
-    TLabel    *LBL_CONNECTION_STATUS;   // Надпись "CONNECTED" или "DISCONNECTED"
-    TLabel    *LBL_CHOOSE_COM_PORT;     // Надпись "Choose COM Port:"
-    TComboBox *CMB_COM_PORT;            // Выпадающий список доступных COM-портов
-    TButton   *BTN_CONNECT;             // Кнопка "CONNECT"
-    TButton   *BTN_DISCONNECT;          // Кнопка "DISCONNECT"
+    TGroupBox *GB_ESP_CONNECTION;
+    TLabel    *LBL_CONNECTION_STATUS;
+    TLabel    *LBL_CHOOSE_COM_PORT;
+    TComboBox *CMB_COM_PORT;
+    TButton   *BTN_CONNECT;
+    TButton   *BTN_DISCONNECT;
 
     // ================================================================
-    // БЛОК 2: ФИКСИРОВАННЫЕ КНОПКИ (CALC и PAINT)
-    // Отображение статуса нажатий кнопок D4 и D16 на ESP32
+    // БЛОК 2: СТАТУС КНОПОК ESP32
+    // Отображение состояния трёх кнопок D4, D16, D17
     // ================================================================
-    TGroupBox *GB_ESP_INVOKE_CALC_PAINT;  // Рамка "ESP INVOKE CALC OR PAINT"
-    TLabel    *LBL_CALC_STATUS;           // Статус D4: "PRESSED" или "released"
-    TLabel    *LBL_PAINT_STATUS;          // Статус D16: "PRESSED" или "released"
+    TGroupBox *GB_ESP_INVOKE_CALC_PAINT;
+    TLabel    *LBL_CALC_STATUS;    // Статус кнопки D4
+    TLabel    *LBL_PAINT_STATUS;   // Статус кнопки D16
+    TLabel    *LBL_D17_STATUS;     // Статус кнопки D17
 
     // ================================================================
-    // БЛОК 3: НАЗНАЧЕНИЕ ЛЮБОЙ ПРОГРАММЫ
-    // Пользователь выбирает какую программу запускать по кнопке
+    // БЛОК 3: НАЗНАЧЕНИЕ ПРОГРАММ НА КНОПКИ
     // ================================================================
-    TGroupBox *GB_ESP_INVOKE_ANY_PROGRAM; // Рамка "ESP INVOKE ANY WINDOWS PROGRAM"
+    TGroupBox *GB_ESP_INVOKE_ANY_PROGRAM;
 
-    TButton   *BTN_PIN_TO_D4;     // Кнопка "PIN TO D4" — открывает диалог выбора файла
-    TLabel    *LBL_D4_PINNED_TO;  // Надпись "D4 PINNED TO: calc.exe"
-    TEdit     *EDIT_D4;           // Поле отображения пути к программе для D4
-                                  // (только для чтения — пользователь не может
-                                  //  печатать в нём, только смотреть)
+    // --- Кнопка D4 ---
+    TButton   *BTN_PIN_TO_D4;
+    TLabel    *LBL_D4_PINNED_TO;
+    TEdit     *EDIT_D4;
 
-    TButton   *BTN_PIN_TO_D16;    // Кнопка "PIN TO D16"
-    TLabel    *LBL_D16_PINNED_TO; // Надпись "D16 PINNED TO: mspaint.exe"
-    TEdit     *EDIT_D16;          // Поле отображения пути к программе для D16
+    // --- Кнопка D16 ---
+    TButton   *BTN_PIN_TO_D16;
+    TLabel    *LBL_D16_PINNED_TO;
+    TEdit     *EDIT_D16;
+
+    // --- Кнопка D17 (новая) ---
+    TButton   *BTN_PIN_TO_D17;
+    TLabel    *LBL_D17_PINNED_TO;
+    TEdit     *EDIT_D17;
 
     // ================================================================
-    // БЛОК 4: ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
+    // ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
     // ================================================================
-    TStatusBar  *SB_MAIN_STATUS_BAR; // Строка статуса внизу окна
-    TTimer      *TimerReadCom;       // Таймер: каждые 50 мс читает данные от ESP32
-    TOpenDialog *OpenDialog1;        // Стандартный диалог Windows "Открыть файл"
+    TStatusBar  *SB_MAIN_STATUS_BAR;
+    TTimer      *TimerReadCom;
+    TOpenDialog *OpenDialog1;
 
     // ================================================================
     // ОБРАБОТЧИКИ СОБЫТИЙ
-    // Это функции которые вызываются АВТОМАТИЧЕСКИ когда что-то происходит.
-    // IDE связывает их с событиями компонентов через файл .dfm
     // ================================================================
-    void __fastcall FormCreate(TObject *Sender);          // Форма создана и готова
-    void __fastcall FormClose(TObject *Sender,
-                              TCloseAction &Action);      // Пользователь закрывает окно
-    void __fastcall BTN_CONNECTClick(TObject *Sender);    // Клик по CONNECT
-    void __fastcall BTN_DISCONNECTClick(TObject *Sender); // Клик по DISCONNECT
-    void __fastcall TimerReadComTimer(TObject *Sender);   // Тик таймера (каждые 50 мс)
-    void __fastcall BTN_PIN_TO_D4Click(TObject *Sender);  // Клик по PIN TO D4
-    void __fastcall BTN_PIN_TO_D16Click(TObject *Sender); // Клик по PIN TO D16
+    void __fastcall FormCreate(TObject *Sender);
+    void __fastcall FormClose(TObject *Sender, TCloseAction &Action);
+    void __fastcall BTN_CONNECTClick(TObject *Sender);
+    void __fastcall BTN_DISCONNECTClick(TObject *Sender);
+    void __fastcall TimerReadComTimer(TObject *Sender);
+    void __fastcall BTN_PIN_TO_D4Click(TObject *Sender);
+    void __fastcall BTN_PIN_TO_D16Click(TObject *Sender);
+    void __fastcall BTN_PIN_TO_D17Click(TObject *Sender);  // новая
 
-// private — скрытая секция.
-// Всё что здесь видно ТОЛЬКО внутри класса TForm1.
-// Снаружи никто не может обратиться к этим переменным и функциям напрямую.
-// Это называется "инкапсуляция" — прячем детали реализации от внешнего мира.
 private:
 
     // ================================================================
-    // ПЕРЕМЕННЫЕ СОСТОЯНИЯ COM-ПОРТА
+    // ПЕРЕМЕННЫЕ COM-ПОРТА
     // ================================================================
-
-    // HANDLE — тип данных Windows для "дескриптора" (номерка устройства).
-    // Когда мы открываем COM-порт, Windows выдаёт нам этот номерок.
-    // Дальше все операции (чтение, запись, закрытие) идут через него.
-    // INVALID_HANDLE_VALUE = -1 = "порт не открыт"
-    HANDLE hCom;
-
-    // Флаг: подключены ли мы к ESP32 прямо сейчас
-    // true = подключены, false = нет
-    bool connected;
+    HANDLE        hCom;             // Дескриптор открытого COM-порта
+    bool          connected;        // true = подключены к ESP32
+    bool          commandPending;   // true = ждём ответ от ESP32
+    AnsiString    lastCommand;      // Последняя отправленная команда
+    unsigned long commandStartTime; // Когда отправили команду (для таймаута)
 
     // ================================================================
-    // ПЕРЕМЕННЫЕ ДЛЯ КОНТРОЛЯ КОМАНД
-    //
-    // Когда мы отправляем команду ESP32, мы ждём ответ.
-    // Эти переменные защищают от ситуации когда новая команда
-    // отправляется раньше чем пришёл ответ на предыдущую.
+    // ПУТИ К ПРОГРАММАМ
+    // Полные пути к .exe файлам для каждой кнопки ESP32
     // ================================================================
-
-    // true = команда отправлена, ответ ещё не получен
-    bool commandPending;
-
-    // Текст последней отправленной команды (для отладки и логов)
-    AnsiString lastCommand;
-
-    // Момент времени когда отправили команду (в миллисекундах от старта Windows).
-    // GetTickCount() возвращает это число.
-    // Нужно для таймаута: если прошло 5 секунд — считаем что ESP32 не ответит.
-    unsigned long commandStartTime;
+    String D4_ProgramPath;    // Например: "C:\\Windows\\System32\\calc.exe"
+    String D16_ProgramPath;   // Например: "C:\\Windows\\System32\\mspaint.exe"
+    String D17_ProgramPath;   // Например: "C:\\Windows\\System32\\notepad.exe"
 
     // ================================================================
-    // ПЕРЕМЕННЫЕ ДЛЯ ПУТЕЙ К ПРОГРАММАМ
-    //
-    // Здесь хранятся полные пути к .exe файлам которые запускаются
-    // при нажатии кнопок D4 и D16 на ESP32.
-    //
-    // Примеры значений:
-    //   "C:\\Windows\\System32\\calc.exe"
-    //   "C:\\Program Files\\Notepad++\\notepad++.exe"
-    // ================================================================
-    String D4_ProgramPath;    // Путь к программе для кнопки D4
-    String D16_ProgramPath;   // Путь к программе для кнопки D16
-
-    // ================================================================
-    // ПРИВАТНЫЕ МЕТОДЫ — внутренние функции класса
-    //
-    // Разбиты на три логических группы:
-    //   1. COM-порт: подключение, чтение, отправка
-    //   2. Настройки: загрузка и сохранение INI файла
-    //   3. UI: обновление элементов интерфейса
+    // ПРИВАТНЫЕ МЕТОДЫ
     // ================================================================
 
     // --- Группа 1: COM-порт ---
-    void RefreshComPorts();            // Сканировать реестр и найти все COM-порты
-    bool CheckESP32(HANDLE hPort);     // Убедиться что на порту именно наш ESP32
-    void SendCommand(AnsiString cmd);  // Отправить текстовую команду в порт
-    void ParseData(AnsiString data);   // Разобрать строку пришедшую от ESP32
-    void SetConnectedState(bool state,
-                           AnsiString port); // Обновить UI после подключения/отключения
+    void RefreshComPorts();
+    bool CheckESP32(HANDLE hPort);
+    void SendCommand(AnsiString cmd);
+    void ParseData(AnsiString data);
+    void SetConnectedState(bool state, AnsiString port);
 
     // --- Группа 2: Настройки INI ---
-    void LoadSettings();   // Прочитать пути к программам из esp32_pins.ini
-    void SaveSettings();   // Записать пути к программам в esp32_pins.ini
+    void LoadSettings();
+    void SaveSettings();
 
     // --- Группа 3: Обновление UI ---
-    void UpdateD4PathDisplay();    // Обновить EDIT_D4 и LBL_D4_PINNED_TO
-    void UpdateD16PathDisplay();   // Обновить EDIT_D16 и LBL_D16_PINNED_TO
+    void UpdateD4PathDisplay();
+    void UpdateD16PathDisplay();
+    void UpdateD17PathDisplay();  
 
     // --- Группа 4: Запуск программ ---
-    void ExecuteD4Program();    // Запустить программу назначенную на D4
-    void ExecuteD16Program();   // Запустить программу назначенную на D16
+    void ExecuteD4Program();
+    void ExecuteD16Program();
+    void ExecuteD17Program();     
 
-// public — открытая секция.
-// Доступна всем кто использует этот класс.
-// Здесь только конструктор — остальное либо в __published, либо в private.
 public:
-    // Конструктор: вызывается когда программа создаёт объект формы.
-    // Owner — "владелец" формы, обычно это сам Application.
     __fastcall TForm1(TComponent* Owner);
 };
 
-//---------------------------------------------------------------------------
-// ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ Form1
-//
-// extern означает "эта переменная определена в другом .cpp файле".
-// В Unit1.cpp есть строка: TForm1 *Form1;  — вот там она реально существует.
-// А здесь мы просто говорим: "знай что такая переменная есть".
-//
-// Form1 — указатель на главное окно программы.
-// Через него любой код в любом файле может обратиться к форме: Form1->Caption
-//---------------------------------------------------------------------------
 extern PACKAGE TForm1 *Form1;
 
-#endif  // Конец защиты от двойного включения (#ifndef Unit1H)
+#endif
+
