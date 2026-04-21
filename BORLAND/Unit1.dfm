@@ -1,8 +1,8 @@
 object Form1: TForm1
   Left = 420
   Top = 249
-  Width = 557
-  Height = 637
+  Width = 473
+  Height = 486
   Caption = 'ESP_EXPERIMENT'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -69,60 +69,13 @@ object Form1: TForm1
       OnClick = BTN_DISCONNECTClick
     end
   end
-  object GB_ESP_INVOKE_CALC_PAINT: TGroupBox
-    Left = 24
-    Top = 200
-    Width = 409
-    Height = 97
-    Caption = 'BUTTONS STATUS'
-    TabOrder = 1
-    object LBL_CALC_STATUS: TLabel
-      Left = 16
-      Top = 24
-      Width = 70
-      Height = 13
-      Caption = 'D4 STATUS'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
-      ParentFont = False
-    end
-    object LBL_PAINT_STATUS: TLabel
-      Left = 16
-      Top = 48
-      Width = 77
-      Height = 13
-      Caption = 'D16 STATUS'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
-      ParentFont = False
-    end
-    object LBL_D17_STATUS: TLabel
-      Left = 16
-      Top = 72
-      Width = 77
-      Height = 13
-      Caption = 'D17 STATUS'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
-      ParentFont = False
-    end
-  end
   object GB_ESP_INVOKE_ANY_PROGRAM: TGroupBox
     Left = 24
-    Top = 320
+    Top = 192
     Width = 409
     Height = 217
     Caption = 'ESP INVOKE ANY WINDOWS PROGRAM'
-    TabOrder = 2
+    TabOrder = 1
     object LBL_D4_PINNED_TO: TLabel
       Left = 104
       Top = 24
@@ -215,8 +168,8 @@ object Form1: TForm1
   end
   object SB_MAIN_STATUS_BAR: TStatusBar
     Left = 0
-    Top = 579
-    Width = 541
+    Top = 428
+    Width = 457
     Height = 19
     Panels = <>
     SimplePanel = False
